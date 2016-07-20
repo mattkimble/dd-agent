@@ -507,12 +507,20 @@ class ESCheck(AgentCheck):
         cluster_stats = config.cluster_stats
         for node_name in data['nodes']:
             node_data = data['nodes'][node_name]
-            # On newer version of ES it's "host" not "hostname"
-            node_hostname = node_data.get(
-                'hostname', node_data.get('host', None))
 
-            # Override the metric hostname if we're hitting an external cluster
-            metric_hostname = node_hostname if cluster_stats else None
+            metric_hostname = None
+
+            # Resolve the node's hostname
+            if cluster_stats:
+                for k in ['hostname', 'host', 'name']:
+                    if k in node_data:
+                        metric_hostname = node_data[k]
+                        break
+                else:
+                    self.log.warning(
+                        u"Unable to resolve the hostname associated to the node name '%s'",
+                        node_name
+                    )
 
             for metric, desc in stats_metrics.iteritems():
                 self._process_metric(
